@@ -1,44 +1,39 @@
 Twit = require 'twit'
-WebSocket = require "ws"
 conf = require './conf'
+WSPubSubClient = require( "node-wspubsub" ).Client
+Log = require( "node-log" )( module, "debug" )
+conf = require "./conf"
 
 module.exports = class TwitterPublisher
   constructor : ( opts = {} ) ->
-    @T = new Twit opts.twitter?.auth or conf.get "twitter:auth" 
-    @endpoint = opts.twitter?.endpoint or conf.get "twitter:endpoint"
+    @auth = opts.twitter?.auth or conf.get "twitterpub:auth"
+    @endpoint = opts.twitter?.endpoint or conf.get "twitterpub:endpoint"
     @url = opts.wspubsub?.url or conf.get "wspubsub:url"
-    @timeout = opts.timeout or 2000
+    @timeout = opts.timeout? or conf.get "twitterpub:timeout" or 1000
+
+    @ws = new WSPubSubClient name : "twitterpub", url : @url
 
   start : =>
-    @startWebSocket()
     @startTwitter()
 
   stop : =>
     @twitterStream.stop()
 
-  startWebSocket: =>
-    return if @ws? && @ws.readyState? && @ws.readyState == 1
-    console.log "trying to connect to websocket server #{@url}"
-    @ws = new WebSocket @url
-    @ws.on "open", => console.log "connected to websocket server"
-    @ws.on "close", => 
-      console.log "websocket server connection closed"
-      @ws = null
-      setTimeout => @startWebSocket(),
-      @timeout
-
   startTwitter : =>
-    console.log "Connecting to twitter (/#{@endpoint})"
+    Log.i "twitter - connecting to endpoint: #{@endpoint}"
+
+    @T = new Twit @auth
     @twitterStream = @T.stream @endpoint
 
+    @twitterStream.on 'connected', => Log.i "twitter - connected"
+    @twitterStream.on 'reconnect', => 
+      Log.i "twitter - reconnect scheduled"
+      setTimeout @startTwitter, @timeout += 500
+
     @twitterStream.on 'tweet', ( tweet ) =>
-      return @startWebSocket() unless @ws.readyState == 1
-      msg = command: "PUBLISH", channel: "tweet", message: tweet
-      @ws.send JSON.stringify(msg)
+      Log.i "twitter - tweet #{JSON.stringify tweet}"
+      @ws.publish "tweet", tweet
 
     @twitterStream.on 'error', ( err ) =>
-      console.log err.message
-      console.log "Retrying in #{@timeout} ms"
-      setTimeout @createTwitterStream, @timeout
-      @timeout += 500
+      Log.e "twitter - error: #{JSON.stringify err}"
 

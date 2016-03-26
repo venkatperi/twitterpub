@@ -4,11 +4,7 @@
   "preferGlobal": false,
   "description": "Simple WebSockets pubsub server",
   "dependencies": {
-    "nconf": "^0.7.1",
-    "nomnom": "^1.8.1",
-    "q": "^1.4.1",
-    "twit": "^2.2.3",
-    "ws": "^1.0.1"
+    "twit": "^2.2.3"
   },
   "engines": {
     "node": ">= 0.6.0",
