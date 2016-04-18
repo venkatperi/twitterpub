@@ -1,5 +1,5 @@
 Twit = require 'twit'
-WSPubSubClient = require( "node-wspubsub" ).Client
+WSPubSubClient = require( "wspubsub" ).Client
 Log = require( "yandlr" ) module : module
 _ = require 'underscore'
 conf = require './conf'
